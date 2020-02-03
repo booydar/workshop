@@ -9,14 +9,14 @@ from matplotlib.patches import FancyArrowPatch, Circle, Ellipse
 
 
 
-def draw_network(G,pos,ax,sg=None, labels=None, weight_coeff=1):
+def draw_network(G,pos,ax,sg=None, labels=None, node_color='b', weight_coeff=1):
 
     for n in G:
         if labels:
             text = labels[n]
         else:
             text = '^_^'
-        c=Ellipse(xy=pos[n],width=0.05 + 0.005*len(text), height=0.05, color='pink')
+        c=Ellipse(xy=pos[n],width=0.05 + 0.005*len(text), height=0.05, color=node_color)
         ax.add_patch(c)
                   
         G.nodes[n]['patch']=c
@@ -154,7 +154,7 @@ class Graph():
         if style == 'fancy':
 
             ax=plt.gca()
-            draw_network(graph,pos,ax, labels=labels, weight_coeff=100/self.df.shape[0])
+            draw_network(graph,pos,ax, node_color='b', labels=labels, weight_coeff=100/self.df.shape[0])
             plt.axis('equal')
             plt.axis('off')
 
@@ -167,9 +167,13 @@ class Graph():
             if info=='edges':
                 labels = {}
                 for edge in self.act_graph.edges:
-                    labels[edge] = int(activity_matrix[int(edge[0]), int(edge[1])])
+                    
+                    if edge[0] == edge[1]:
+                        continue
+                    labels[edge] = str(int(self.activity_matrix[int(edge[0]), int(edge[1])])) + '<->' \
+                    + str(int(self.activity_matrix[int(edge[1]), int(edge[0])]))
                 nx.draw_networkx_edge_labels(graph, pos=pos, width=weights, with_labels=True, 
-                                            font_size=20, node_size=node_size, 
+                                            font_size=12, node_size=node_size, 
                                             node_color='b',  edge_color='c', edge_labels=labels)
             plt.show()
         
@@ -246,7 +250,7 @@ class Graph():
         if style == 'fancy':
 
             ax=plt.gca()
-            draw_network(graph, pos, ax, labels=labels, weight_coeff=100/self.df.shape[0])
+            draw_network(graph, pos, ax, labels=labels, node_color='pink', weight_coeff=100/self.df.shape[0])
             plt.axis('equal')
             plt.axis('off')
 
@@ -256,14 +260,14 @@ class Graph():
                     node_size=node_size, node_shape="D",
                     node_color='pink', edge_color='c', labels=labels)
             if info=='edges':
-                lab = {}
+                labels = {}
                 for edge in self.usr_graph.edges:
                     if edge[0] == edge[1]:
                         continue
-                    lab[edge] = str(int(self.users_matrix[int(edge[0]), int(edge[1])])) + '<->' \
+                    labels[edge] = str(int(self.users_matrix[int(edge[0]), int(edge[1])])) + '<->' \
                     + str(int(self.users_matrix[int(edge[1]), int(edge[0])]))
 
                 nx.draw_networkx_edge_labels(graph, pos=pos, width=weights, with_labels=True, 
                                             font_size=12, node_size=500,
-                                            node_color='b',  edge_color='c', edge_labels=lab)
+                                            node_color='b',  edge_color='c', edge_labels=labels)
             plt.show()   
