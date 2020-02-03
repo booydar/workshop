@@ -4,6 +4,56 @@ from matplotlib import pyplot as plt
 import networkx as nx
 from networkx import DiGraph
 
+from matplotlib.patches import FancyArrowPatch, Circle, Ellipse
+
+
+
+
+def draw_network(G,pos,ax,sg=None, labels=None, weight_coeff=1):
+
+    for n in G:
+        if labels:
+            text = labels[n]
+        else:
+            text = '^_^'
+        c=Ellipse(xy=pos[n],width=0.05 + 0.005*len(text), height=0.05, color='pink')
+        ax.add_patch(c)
+                  
+        G.nodes[n]['patch']=c
+        
+    for (u,v) in G.edges:
+        n1=G.nodes[u]['patch']
+        n2=G.nodes[v]['patch']
+        
+        color='k'
+        
+        lw = G[u][v]['weight'] * weight_coeff
+        
+        rad = 0.1 + 1/(0.5 + lw)
+        
+        e = FancyArrowPatch(n1.center,n2.center,patchA=n1,patchB=n2,
+                            arrowstyle='-|>',
+                            connectionstyle='arc3,rad=%s'%rad,
+                            mutation_scale=15,
+                            lw=lw,
+                            alpha=0.5,
+                            color=color)
+
+        ax.add_patch(e)
+        
+    for n in G:
+        if labels:
+            text = labels[n]
+        else:
+            text = '^_^'
+        c=Ellipse(xy=pos[n],width=0.05 + 0.005*len(text), height=0.05, color='pink')
+        ax.add_patch(c)
+        
+        x,y=pos[n]
+        ax.text(x-len(text)*0.00275, y, text, fontsize=10)
+        
+    return e
+
 
 
 class Graph():
@@ -36,14 +86,14 @@ class Graph():
             graph.add_node(user)
         self.df['from_user'] = self.df.groupby([self.id_col])[self.user_col].shift(1)
 
-        edges = self.df.loc[:, ['from_user', self.user_col]].drop_duplicates().dropna().values
+        edges = self.df.loc[:, ['from_user', self.user_col]].drop_duplicates().dropna().values.astype(int)
         graph.add_edges_from(edges)
         self.usr_graph = graph
         return graph
     
-    def draw_activities(self, alpha=0.03, labels=None, layout=None, info=None):
+    def draw_activities(self, alpha=0.03, labels=None, layout=None, info=None, node_size=700, style='fancy'):
 
-        activity_matrix = np.zeros((len(self.stages)+1, len(self.stages)+1))
+        activity_matrix = np.zeros((len(self.stages), len(self.stages)))
         
         for _, row in self.df.iterrows():
             if(pd.isna(row['from'])):
@@ -56,55 +106,76 @@ class Graph():
         self.activity_matrix = activity_matrix
         
         graph = DiGraph()
-        graph.add_nodes_from(self.act_graph.nodes)
         
-        plt.figure(figsize=(16,8))
-        plt.title("Граф перехода активностей")
-        
-        if(info=='nodes'):
-            print("Всего {} видов действий".format(len(self.stages)))
-        elif(info=='time'):
-            print("Среднее время действия:")
-            df = self.df.sort_values('datetime')
-            df['datetime_shift'] = df.datetime.shift(1)
-            for stage in np.unique(df[self.stage_col]):
-                df_ = df.loc[df[self.stage_col]==stage]
-                mean = (df_.datetime[1:] - df_.datetime_shift[1:]).mean()
-                print(mean, ' - ', labels[stage])
-        elif(info=='all'):
-            print("Всего {} видов действий\n".format(len(self.stages)))
-            print("Среднее время действия:")
-            df = self.df.sort_values('datetime')
-            df['datetime_shift'] = df.datetime.shift(1)
-            for stage in np.unique(df[self.stage_col]):
-                df_ = df.loc[df[self.stage_col]==stage]
-                mean = (df_.datetime[1:] - df_.datetime_shift[1:]).mean()
-                print(mean, ' - ', labels[stage])
-            info='edges'
-        
-        
+#calculating nodes order
+        if layout:
+            graph.add_nodes_from(self.act_graph.nodes)
+            pos = layout(graph)
+        else:
+            mat = self.activity_matrix.copy()
+
+            for i in range(mat.shape[0]):
+                mat[i,i] = -1
+            nodes = []
+            nodes.append(np.argmax(mat) // mat.shape[0])
+            mat[:, nodes[0]] = -1
+
+            while(True):
+                node = np.argmax(mat[nodes[-1],:])
+                mat[:,node] = -1
+                nodes.append(node)
+
+                if len(nodes) == mat.shape[0]:
+                    break 
+
+            graph.add_nodes_from(nodes)
+            
+            pos = {}
+            for i, node in enumerate(nodes[:-2]):
+                x = 0.5
+                y = 1 - (i + 1) / (len(nodes[:-2]) + 1)
+                pos[node] = [x, y]
+                
+            for i, node in enumerate(nodes[-2:]):
+                x = (i + 1) / (2 + 1)
+                pos[node] = [x, y]
+
         for edge in self.act_graph.edges:
             graph.add_edge(edge[0], edge[1], weight=1 + alpha*activity_matrix[int(edge[0]), int(edge[1])])
             
         weights = [graph[u][v]['weight'] for u,v in graph.edges]
+            
         
-        if layout:
-            pos = layout(graph)
+# drawing graph
+
+        
+        plt.figure(figsize=(16,16))
+        plt.title("Граф перехода активностей")
+        if style == 'fancy':
+
+            ax=plt.gca()
+            draw_network(graph,pos,ax, labels=labels, weight_coeff=100/self.df.shape[0])
+            plt.axis('equal')
+            plt.axis('off')
+
+            plt.show()
         else:
-            pos = None
-        
-        nx.draw(graph, pos=pos, width=weights, with_labels=True, font_size=20, node_size=500, node_shape='d',
+            
+            nx.draw(graph, pos=pos, width=weights, with_labels=True, font_size=10, 
+                    node_size=node_size, node_shape='D',
                     node_color='c',  edge_color='pink', labels=labels)
-        if info=='edges':
-            labels = {}
-            for edge in self.act_graph.edges:
-                labels[edge] = int(activity_matrix[int(edge[0]), int(edge[1])])
-            nx.draw_networkx_edge_labels(graph, pos=pos, width=weights, with_labels=True, 
-                                        font_size=20, node_size=500, node_shape='d',
-                                        node_color='b',  edge_color='c', edge_labels=labels)
-        plt.show()
+            if info=='edges':
+                labels = {}
+                for edge in self.act_graph.edges:
+                    labels[edge] = int(activity_matrix[int(edge[0]), int(edge[1])])
+                nx.draw_networkx_edge_labels(graph, pos=pos, width=weights, with_labels=True, 
+                                            font_size=20, node_size=node_size, 
+                                            node_color='b',  edge_color='c', edge_labels=labels)
+            plt.show()
         
-    def draw_users(self, alpha=0.03, labels=None, layout=None, info=None):
+        
+        
+    def draw_users(self, alpha=0.03, labels=None, layout=None, info=None, node_size=700, style='fancy'):
 
         self.users = np.unique(self.df[self.user_col])
         users_matrix = np.zeros((len(self.users), len(self.users)))
@@ -120,55 +191,79 @@ class Graph():
                 
         self.users_matrix = users_matrix
         
+        
+        
         graph = nx.DiGraph()
-        graph.add_nodes_from(self.usr_graph.nodes)
+
+# calculating nodes order
+        if layout:
+            graph.add_nodes_from(self.usr_graph.nodes)
+            pos = layout(graph)
+        else:
+            mat = self.users_matrix.copy()
+            for i in range(mat.shape[0]):
+                mat[i,i] = -1
+
+            nodes = []
+            nodes.append(np.argmax(mat) // mat.shape[0])
+            mat[:, nodes[0]] = -1
+
+            while(True):
+                node = np.argmax(mat[nodes[-1],:])
+                mat[:,node] = -1
+                nodes.append(node)
+
+                if len(nodes) == mat.shape[0]:
+                    break 
+
+            graph.add_nodes_from(nodes)
+            
+            pos = {}
+            for i, node in enumerate(nodes[:-2]):
+                x = 0.5
+                y = 1 - (i + 1) / (len(nodes[:-2]) + 1)
+                pos[node] = [x, y]
+                
+            for i, node in enumerate(nodes[-2:]):
+                x = (i + 1) / (2 + 1)
+                pos[node] = [x, y]
+            
+            
         
         for edge in self.usr_graph.edges:
             if self.users_matrix[int(edge[0]), int(edge[1])] > 0:
-                graph.add_edge(edge[0], edge[1], weight = 1 + alpha*self.users_matrix[int(edge[0]), int(edge[1])])
-        
-        plt.figure(figsize=(16,8))
-        plt.title("Граф социальных связей")
-
-        if(info=='nodes'):
-            print("Всего {} пользователей".format(len(self.users)))
-        elif(info=='time'):
-            print("Среднее время пользователя:")
-            df = self.df.sort_values('datetime')
-            df['datetime_shift'] = df.datetime.shift(1)
-            for user in np.unique(df[self.user_col]):
-                df_ = df.loc[df[self.user_col]==user]
-                mean = (df_.datetime[1:] - df_.datetime_shift[1:]).mean()
-                print(mean, ' - ', labels[user])
+                graph.add_edge(edge[0], edge[1], weight = 1 + alpha*self.users_matrix[edge[0], edge[1]])
                 
-        elif(info=='all'):
-            print("Всего {} пользователей\n".format(len(self.users)))
-            print("Среднее время пользователя:")
-            df = self.df.sort_values('datetime')
-            df['datetime_shift'] = df.datetime.shift(1)
-            for user in np.unique(df[self.user_col]):
-                df_ = df.loc[df[self.user_col]==user]
-                mean = (df_.datetime[1:] - df_.datetime_shift[1:]).mean()
-                print(mean, ' - ', labels[user])
-            info='edges'
+              
+# drawing graph
+
+        
+        plt.figure(figsize=(16,16))
+        plt.title("Граф социальных связей")
         
         weights = [graph[u][v]['weight'] for u,v in graph.edges]
-       
-        if layout:
-            pos = layout(graph)
+        
+        if style == 'fancy':
+
+            ax=plt.gca()
+            draw_network(graph, pos, ax, labels=labels, weight_coeff=100/self.df.shape[0])
+            plt.axis('equal')
+            plt.axis('off')
+
+            plt.show()
         else:
-            pos = None
-        nx.draw(graph, pos=pos, width=weights, with_labels=True, font_size=12, node_size=500, node_shape='d',
-                node_color='pink', edge_color='c', labels=labels)
-        if info=='edges':
-            lab = {}
-            for edge in self.usr_graph.edges:
-                if edge[0] == edge[1]:
-                    continue
-                lab[edge] = str(int(self.users_matrix[int(edge[0]), int(edge[1])])) + '<->' \
-                + str(int(self.users_matrix[int(edge[1]), int(edge[0])]))
-                
-            nx.draw_networkx_edge_labels(graph, pos=pos, width=weights, with_labels=True, 
-                                        font_size=12, node_size=500, node_shape='d',
-                                        node_color='b',  edge_color='c', edge_labels=lab)
-        plt.show()       
+            nx.draw(graph, pos=pos, width=weights, with_labels=True, font_size=12, 
+                    node_size=node_size, node_shape="D",
+                    node_color='pink', edge_color='c', labels=labels)
+            if info=='edges':
+                lab = {}
+                for edge in self.usr_graph.edges:
+                    if edge[0] == edge[1]:
+                        continue
+                    lab[edge] = str(int(self.users_matrix[int(edge[0]), int(edge[1])])) + '<->' \
+                    + str(int(self.users_matrix[int(edge[1]), int(edge[0])]))
+
+                nx.draw_networkx_edge_labels(graph, pos=pos, width=weights, with_labels=True, 
+                                            font_size=12, node_size=500,
+                                            node_color='b',  edge_color='c', edge_labels=lab)
+            plt.show()   
