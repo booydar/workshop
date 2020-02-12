@@ -1,0 +1,8 @@
+digraph Tree {
+node [shape=box] ;
+0 [label="node #0\nX <= 0.5\ngini = 0.5\nsamples = 40\nvalue = [20, 20]"] ;
+1 [label="node #1\ngini = 0.0\nsamples = 20\nvalue = [0, 20]"] ;
+0 -> 1 [labeldistance=2.5, labelangle=45, headlabel="True"] ;
+2 [label="node #2\ngini = 0.0\nsamples = 20\nvalue = [20, 0]"] ;
+0 -> 2 [labeldistance=2.5, labelangle=-45, headlabel="False"] ;
+}
