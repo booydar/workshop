@@ -1,1 +1,2 @@
-temporary tasks
+- Factor analysis
+- Interactive graph visialization using HTML and python
