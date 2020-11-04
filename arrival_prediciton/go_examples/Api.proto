@@ -1,0 +1,300 @@
+syntax = "proto3";
+
+package api;
+
+//option go_package =  ".;api";
+
+import "google/protobuf/struct.proto";
+
+service API {
+  // получение перечня транспортных средств
+  rpc GetVehicles(GetVehiclesRequest) returns (GetVehiclesResponse);
+
+  //получение телематических данных за период (необогащенные данные)
+  rpc GetObjectsDataRange(ObjectsDataRangeRequest) returns (ObjectsDataRangeResponse);
+
+  //получение телематических данных за период в виде потока (необогащенные данные)
+  rpc GetObjectsDataRangeAsStream(ObjectsDataRangeRequest) returns (stream ObjectData);
+
+  //подписка на поток телематических данных устройства
+  rpc GetObjectsDataStream(ObjectsDataStreamRequest) returns (stream DataPoint);
+
+  //получение обогащённого состояния устройств на момент времени (если время не указано - последнее известное состояние устройства)
+  rpc GetObjectsState(ObjectsStateRequest) returns (ObjectsStateResponse);
+
+  //получение событий по устройству за период
+  rpc GetObjectsEventsRange(ObjectsEventsRequest) returns (ObjectsEventsRangeResponse);
+
+  //подписка на поток событий по устройствам
+  rpc GetObjectsEventsStream(ObjectsEventsRequest) returns (stream Event);
+
+  //получение метаданных устройства
+  rpc GetObjectsInfo(ObjectsInfoRequest) returns (ObjectsInfoResponse);
+
+  rpc GetModelUpdates(ModelUpdatesRequest) returns (ModelUpdatesResponse);
+
+  //получение соседних точек телематики
+  rpc GetClosestPoints(ClosestPointsRequest) returns (ClosestPointsResponse);
+
+}
+
+service TagsDictionaryAPI {
+  rpc ResolveTag(ResolveTagRequest) returns (ResolveTagResponse);
+  rpc ResolveAllTagsMap(ResolveAllTagsMapRequest) returns (ResolveAllTagsMapResponse);
+}
+
+
+
+
+
+message GetVehiclesRequest {
+  repeated string Subsystems = 1;
+}
+
+message GetVehiclesResponse {
+  repeated Vehicle Vehicles = 1;
+}
+
+message Vehicle {
+  string Subsystem = 1;
+  string DeviceCode = 2;
+  string StateNumber = 3;
+  string VehicleMark = 4;
+  string VehicleModel = 5;
+  string UnitINN = 6;
+}
+
+
+
+
+
+
+
+message ModelUpdatesRequest {
+  enum ModelType {
+    UNKNOWN = 0;
+    VEHICLES = 1;
+    BNSOS = 2;
+  }
+
+  ModelType Type = 1;
+  int64 DateFrom = 2;
+
+  int64 Limit = 3;
+  string UuidOffset = 4;
+}
+
+message ModelUpdatesResponse {
+    repeated google.protobuf.Struct Values = 2;
+}
+
+// структура запроса данных
+message DataFilter {
+  repeated string DeviceCode = 1;
+  repeated string StateNumber = 5;
+  repeated string Subsystem = 6;
+  int64 DateFrom = 2;
+  int64 DateTo = 3;
+  int64 Limit = 4;
+  repeated string ExcludeDeviceCode = 7;
+}
+
+// данной структурой отмечаются поля, которые клиент ожидает получить в ответе на запрос
+message FieldsToggle {
+  bool Position = 1;
+  bool Ignition = 2;
+  bool Motohours = 3;
+  bool Mileage = 4;
+  bool Fuel = 5;
+  bool SpeedLimit = 6;
+  bool Moving = 7;
+  bool Ports = 8;
+  bool Address = 9;
+}
+
+
+// полигон для ограничения выборки данных по геопозиции
+message BoundingBox {
+  double TopLeftLatitude = 1;
+  double TopLeftLongitude = 2;
+  double RightBottomLatitude = 3;
+  double RightBottomLongitude = 4;
+}
+
+
+message ObjectsDataRangeRequest {
+  DataFilter Filter = 1;
+  FieldsToggle Fields = 2;
+  BoundingBox BoundingBox =3;
+}
+
+message ObjectsDataRangeResponse {
+  repeated ObjectData Objects = 1;
+}
+
+message ObjectData {
+  string DeviceCode = 1;
+  string StateNumber = 4;
+  repeated DataPoint Data = 2;
+  ObjectMetadata Metadata = 3;
+}
+
+message ObjectMetadata {
+  string Label = 1;
+  string Driver = 2;
+}
+
+message DataPoint {
+  string DeviceCode = 1;
+  int64 DeviceTime = 2;
+  GpsData Position = 3;
+  ObjectState State = 4;
+  int64 ReceivedTime = 5;
+  map<int32, double> FuelTanks = 6;
+  Accelerations Accelerations = 7;
+  double FuelSpent = 8;
+}
+
+message PointBundle {
+  DataPoint Position = 1;
+  DataPoint Ignition = 2; 
+  DataPoint Moving = 3;
+}
+
+message HistorySequence {
+  string DeviceCode = 1;
+  PointBundle Left = 2;
+  PointBundle Right = 3;
+  repeated DataPoint Points = 4;
+  string UUID = 5;
+}
+
+message Accelerations {
+  double X = 1;
+  double Y = 2;
+  double Z = 3;
+}
+
+message ObjectState {
+  bool Moving = 1;
+  bool Ignition = 2;
+  double Fuel = 3;
+  double Mileage = 4;
+  int64 Motohours = 5;
+  int32 SpeedLimit = 6;
+  map<int32, double> AnalogPorts = 7;
+  map<int32, bool> DigitalPorts = 8;
+  string Address = 9;
+  double VoltageExt = 10;
+  double VoltageInt = 11;
+  bool PanicButton = 12;
+  double Distance = 13;
+
+  double MotohoursCalculated = 20;
+
+  bool has_Moving = 31;
+  bool has_Ignition = 32;
+}
+
+message GpsData {
+  double Longitude = 1;
+  double Latitude = 2; 
+  double Altitude = 3;
+  int32 Course = 4;
+  int32 Satellites = 5;
+  int32 Speed = 6;
+  bool Valid = 7;
+  int32 HDOP = 8;
+}
+
+message Event {
+  ObjectData Object = 1;
+  string EventType  =2;
+}
+
+message ObjectsDataStreamRequest {
+  DataFilter Filter = 1;
+  FieldsToggle Fields = 2;
+  BoundingBox BoundingBox =3;
+}
+message ObjectsEventsRequest {
+  DataFilter Filter = 1;
+  repeated string Events = 2;
+}
+
+message ObjectsInfoRequest {
+  DataFilter Filter = 1;
+}
+message ObjectsStateRequest {
+  DataFilter Filter = 1;
+  FieldsToggle Fields = 2;
+}
+
+message ResolveTagRequest {
+  string TagName = 1;
+  int32 TagType = 2;
+}
+
+message ResolveTagResponse {
+  int32 Tag = 1;
+}
+
+message ResolveAllTagsMapRequest {
+  string TagName = 1;
+  int32 TagType = 2;
+}
+
+message ResolveAllTagsMapResponse {
+   map<uint32, TagsMapElement> Map = 1;
+}
+
+message TagsMapElement {
+    string TagName = 1;
+    uint32 TagType = 2;
+}
+
+message ObjectsStateResponse {
+  repeated ObjectData Objects = 1;
+}
+
+
+message ObjectsEventsRangeResponse {
+  repeated Event Events = 1;
+}
+message ObjectsEventsStreamResponse {}
+
+message ObjectsInfoResponse {
+  repeated ObjectData Objects = 1;
+}
+
+
+
+message DeviceSensors {
+  map<uint32, bool> Booleans = 1;
+  map<uint32, double> Doubles = 2;
+}
+
+
+message TaggedPoint {
+  string DeviceCode = 1;
+  int64 DeviceTime = 2;
+  int64 ReceivedTime = 5;
+  GpsData Position = 3;
+  ObjectState State = 4;
+}
+
+message ClosestPointsRequest {
+  string DeviceCode = 1;
+  int64 DeviceTime = 2;
+  PointEdges Edges = 3;
+}
+
+message PointEdges {
+  bool Left = 1;
+  bool Right = 2;
+}
+
+message ClosestPointsResponse {
+  PointBundle Left = 1;
+  PointBundle Right = 2;
+}
