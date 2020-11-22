@@ -8,10 +8,7 @@ import "google/protobuf/struct.proto";
 
 service API {
   // получение перечня транспортных средств
-  
   rpc GetVehicles(GetVehiclesRequest) returns (GetVehiclesResponse);
-
-  rpc GetDevices(GetDevicesRequest) returns (GetDevicesResponse);
 
   //получение телематических данных за период (необогащенные данные)
   rpc GetObjectsDataRange(ObjectsDataRangeRequest) returns (ObjectsDataRangeResponse);
@@ -54,15 +51,8 @@ message GetVehiclesRequest {
   repeated string Subsystems = 1;
 }
 
-message GetDevicesRequest {
-  repeated string Subsystems = 1;
-}
-
 message GetVehiclesResponse {
   repeated Vehicle Vehicles = 1;
-}
-message GetDevicesResponse {
-  repeated Device Devices = 1;
 }
 
 message Vehicle {
@@ -72,15 +62,6 @@ message Vehicle {
   string VehicleMark = 4;
   string VehicleModel = 5;
   string UnitINN = 6;
-}
-
-message Device {
-  string DeviceCode = 1;
-  string StateNumber = 2;
-  string Subsystem = 3;
-  string UnitINN = 5;
-  string UnitName = 6;
-  DataPoint LastPoint = 7;
 }
 
 
@@ -172,7 +153,6 @@ message DataPoint {
   map<int32, double> FuelTanks = 6;
   Accelerations Accelerations = 7;
   double FuelSpent = 8;
-  string Endpoint = 9;
 }
 
 message PointBundle {
@@ -229,7 +209,7 @@ message GpsData {
 
 message Event {
   ObjectData Object = 1;
-  string EventType  = 2;
+  string EventType  =2;
 }
 
 message ObjectsDataStreamRequest {

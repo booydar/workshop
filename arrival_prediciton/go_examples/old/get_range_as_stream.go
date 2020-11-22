@@ -4,7 +4,6 @@ import (
 	"google.golang.org/grpc"
 	"time"
 	"io"
-	"os"
 	"context"
 	// "externalapi/api"
 	"git-02.t1-group.ru/contracts/proto-go/api"
@@ -13,13 +12,11 @@ import (
 
 const TIME_FORMAT = "2006-01-02 15:04:05"
 
-var GATEWAY_ADDR = os.Getenv("GATEWAY_ADDR")
 
 func main() {
 
 	log.Infof("# Соединение c gRPC сервисом...")
-	conn, err := grpc.Dial(GATEWAY_ADDR, grpc.WithInsecure())
-	// conn, err := grpc.Dial("rnis-tm.t1-group.ru:18082", grpc.WithInsecure())
+	conn, err := grpc.Dial("rnis-tm.t1-group.ru:18082", grpc.WithInsecure())
 	if err != nil {
 		log.Errorf("# Ошибка соединения c gRPC сервисом: %v", err)
 	}
@@ -28,17 +25,17 @@ func main() {
 
 	log.Infof("# Запрос диапазона телематики в формате потока...")
 
-	timeFrom, _	:= time.Parse(TIME_FORMAT, "2020-11-12 21:00:00")
-	timeTo, _ 	:= time.Parse(TIME_FORMAT, "2020-11-13 21:00:00")
+	timeFrom, _	:= time.Parse(TIME_FORMAT, "2020-09-13 21:00:00")
+	timeTo, _ 	:= time.Parse(TIME_FORMAT, "2020-09-14 21:00:00")
 
 	rangeStreamRequest := &api.ObjectsDataRangeRequest{
 		Filter: &api.DataFilter{
 			DateFrom: 			timeFrom.Unix(),
 			DateTo: 			timeTo.Unix(),
 			Subsystem: 			[]string{"kiutr"}, // для мусоровозов - garbade, на тестовом стенде данные по garbage отсутствуют 
-			// ExcludeDeviceCode: 	[]string{"10033473","404957","500459"}, // пример исключения уже обработанных блоков
-			// DeviceCode:			[]string{"123456789"},  // дополнительные коды БНСО
-			// StateNumber: 		[]string{"Н040РА195"},  // дополнительные госномера
+			ExcludeDeviceCode: 	[]string{"10033473","404957","500459"}, // пример исключения уже обработанных блоков
+			DeviceCode:			[]string{"10033473","404957"},  // дополнительные коды БНСО
+			StateNumber: 		[]string{"Н040РА195"},  // дополнительные госномера
 		},
 		Fields: &api.FieldsToggle{
 			Position: true, // заправшивает только навигационную информацию
@@ -63,7 +60,7 @@ func main() {
 		log.Infof("ObjectID: %s \t StateNumber: %s", object.DeviceCode, object.StateNumber)
 		// object.Data содержит в себе все запрошенные телематические точки по устройству
 		for _, point := range object.Data {
-			log.Infof("\t DeviceTime: %s \tLongitude: %.8f \t Latitude: %.8f\t Speed: %d", time.Unix(point.DeviceTime, 0), point.Position.Longitude, point.Position.Latitude, point.Position.Speed)
+			log.Infof("\t DeviceTime: %s \tLongitude: %.8f \t Latitude: %.8f", time.Unix(point.DeviceTime, 0), point.Position.Longitude, point.Position.Latitude)
 		}
 	}
 }

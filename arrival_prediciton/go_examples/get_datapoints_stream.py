@@ -41,9 +41,9 @@ def get_data_stream(stub):
 
     
 def run():
-    # endpoint_address = 'rnis-tm.t1-group.ru:18082'
+    endpoint_address = 'rnis-tm.t1-group.ru:18082'
     localhost = 'localhost:50051'
-    with grpc.insecure_channel(localhost) as channel:
+    with grpc.insecure_channel(endpoint_address) as channel:
         print("------------Create Stub--------------")
         stub = api_grpc.APIStub(channel)
 
@@ -113,7 +113,7 @@ def pack_request_to_df(filename, max_records):
                                 'hdop'])
 
      
-    with grpc.insecure_channel(localhost) as channel:
+    with grpc.insecure_channel(endpoint_address) as channel:
         print("------------Create Stub--------------")
         stub = api_grpc.APIStub(channel)
 
@@ -148,7 +148,9 @@ def pack_request_to_df(filename, max_records):
             'hdop': gps_data.HDOP,
         }
 
-        records_df.append(record, ignore_index=True)
+        records_df = records_df.append(record, ignore_index=True)
+
+    records_df.to_csv('records_from_script.csv')
 
 if __name__ == '__main__':
     
